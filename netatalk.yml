@@ -1,0 +1,53 @@
+---
+- name: Apple filesharing
+  hosts: pi
+  vars:
+    server_name: pi
+    guest_user: pi
+    shared_path: /mnt/volume
+    share_name: "Movies & TV"
+  tasks:
+
+  - name: Install netatalk
+    become: true
+    apt:
+      name:
+        - netatalk
+
+  - name: Configure netatalk
+    become: true
+    lineinfile:
+      path: /etc/default/netatalk
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+      # setting HISTSIZE and HISTFILESIZE to blank, means they don't
+      # have a fixed size and will retain as much history as possible
+      - { regexp: '^ATALK_NAME=', line: 'ATALK_NAME={{ server_name }}' }
+      - { regexp: '^AFPD_GUEST=', line: 'AFPD_GUEST={{ guest_user }}' }
+      - { regexp: '^ATALKD_RUN=', line: 'ATALKD_RUN=no' }
+      - { regexp: '^PAPD_RUN=', line: 'PAPD_RUN=no' }
+      - { regexp: '^TIMELORD_RUN=', line: 'TIMELORD_RUN=no' }
+      - { regexp: '^A2BOOT_RUN=no', line: 'A2BOOT_RUN=no' }
+
+  - name: Configure afpd
+    become: true
+    lineinfile:
+      path: /etc/netatalk/afpd.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+      # setting HISTSIZE and HISTFILESIZE to blank, means they don't
+      # have a fixed size and will retain as much history as possible
+      - { regexp: '^-transall', line: '-transall -uamlist uams_guest.so -nosavepassword -advertise_ssh' }
+
+  - name: Configure afpd volumes
+    become: true
+    lineinfile:
+      path: /etc/netatalk/AppleVolumes.default
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+      # setting HISTSIZE and HISTFILESIZE to blank, means they don't
+      # have a fixed size and will retain as much history as possible
+      - { regexp: '^{{ shared_path }}', line: '{{ shared_path }} "{{ share_name }}" rwlist:@{{ guest_user }} rolist:nobody cnidscheme:cdb options:noadouble,nohex,usedots,upriv,nodev' }
